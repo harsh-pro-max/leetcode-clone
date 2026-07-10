@@ -1,8 +1,8 @@
 const express = require('express')
 const app = express();
 require('dotenv').config();
-const main =  require('./config/db')
-const cookieParser =  require('cookie-parser');
+const main = require('./config/db')
+const cookieParser = require('cookie-parser');
 const authRouter = require("./routes/userAuth");
 const redisClient = require('./config/redis');
 const problemRouter = require("./routes/problemCreator");
@@ -11,39 +11,48 @@ const aiRouter = require("./routes/aiChatting")
 const videoRouter = require("./routes/videoCreator");
 const cors = require('cors')
 
-// console.log("Hello")
+// ✅ Dynamic CORS - Localhost (Development) + Production (Render)
+const allowedOrigins = [
+    'http://localhost:5173',  // Local Frontend
+    'http://localhost:3000',  // Local Backend (if needed)
+    process.env.CLIENT_URL    // Render Frontend (set karna baad mein)
+].filter(Boolean); // Remove undefined/null values
 
 app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true 
-}))
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, postman)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('Blocked by CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/user',authRouter);
-app.use('/problem',problemRouter);
-app.use('/submission',submitRouter);
-app.use('/ai',aiRouter);
-app.use("/video",videoRouter);
+app.use('/user', authRouter);
+app.use('/problem', problemRouter);
+app.use('/submission', submitRouter);
+app.use('/ai', aiRouter);
+app.use("/video", videoRouter);
 
-
-const InitalizeConnection = async ()=>{
-    try{
-
-        await Promise.all([main(),redisClient.connect()]);
+const InitalizeConnection = async () => {
+    try {
+        await Promise.all([main(), redisClient.connect()]);
         console.log("DB Connected");
-        
-        app.listen(process.env.PORT, ()=>{
-            console.log("Server listening at port number: "+ process.env.PORT);
+
+        app.listen(process.env.PORT, () => {
+            console.log("Server listening at port number: " + process.env.PORT);
         })
 
-    }
-    catch(err){
-        console.log("Error: "+err);
+    } catch (err) {
+        console.log("Error: " + err);
     }
 }
 
-
 InitalizeConnection();
-
