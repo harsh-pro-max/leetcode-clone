@@ -58,6 +58,7 @@ const register = async (req, res) => {
         res.status(400).json({ error: err.message });
     }
 };
+
 const login = async (req, res) => {
     try {
         const { emailId, password } = req.body;
@@ -84,7 +85,7 @@ const login = async (req, res) => {
             // ✅ Return action flag so frontend redirects to OTP page
             return res.status(401).json({
                 error: "Email not verified. A new OTP has been sent to your email.",
-                action: "VERIFY_OTP",   // 🔥 FRONTEND ISKO DEKHEGA
+                action: "VERIFY_OTP",
                 emailId: emailId
             });
         }
@@ -109,7 +110,15 @@ const login = async (req, res) => {
             process.env.JWT_KEY,
             { expiresIn: 60 * 60 }
         );
-        res.cookie('token', token, { maxAge: 60 * 60 * 1000 });
+
+        // ✅ COOKIE FIX: Secure + SameSite none
+        res.cookie('token', token, {
+            maxAge: 60 * 60 * 1000,
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
+
         res.status(200).json({
             user: reply,
             message: "Logged In Successfully"
@@ -120,7 +129,6 @@ const login = async (req, res) => {
     }
 };
 
-
 const logout = async (req, res) => {
     try {
         const { token } = req.cookies;
@@ -129,7 +137,13 @@ const logout = async (req, res) => {
         await redisClient.set(`token:${token}`, 'Blocked');
         await redisClient.expireAt(`token:${token}`, payload.exp);
 
-        res.cookie("token", null, { expires: new Date(Date.now()) });
+        // ✅ COOKIE CLEAR FIX: Use clearCookie with secure + sameSite
+        res.clearCookie('token', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
+
         res.send("Logged Out Successfully");
     } catch (err) {
         res.status(503).send("Error: " + err);
@@ -145,9 +159,20 @@ const adminRegister = async (req, res) => {
         req.body.role = 'admin';
 
         const user = await User.create(req.body);
-        const token = jwt.sign({ _id: user._id, emailId: emailId, role: user.role }, process.env.JWT_KEY, { expiresIn: 60 * 60 });
+        const token = jwt.sign(
+            { _id: user._id, emailId: emailId, role: user.role },
+            process.env.JWT_KEY,
+            { expiresIn: 60 * 60 }
+        );
 
-        res.cookie('token', token, { maxAge: 60 * 60 * 1000 });
+        // ✅ COOKIE FIX: Secure + SameSite none
+        res.cookie('token', token, {
+            maxAge: 60 * 60 * 1000,
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
+
         res.status(201).send("Admin Registered Successfully");
     } catch (err) {
         res.status(400).send("Error: " + err);
@@ -164,10 +189,16 @@ const deleteProfile = async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        res.clearCookie('token');
-        res.status(200).json({ 
-            success: true, 
-            message: "Account deleted successfully. All submissions removed." 
+        // ✅ COOKIE CLEAR FIX: Use clearCookie with secure + sameSite
+        res.clearCookie('token', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Account deleted successfully. All submissions removed."
         });
 
     } catch (err) {
