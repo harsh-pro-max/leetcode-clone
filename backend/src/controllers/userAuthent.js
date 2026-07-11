@@ -105,15 +105,16 @@ const login = async (req, res) => {
             emailVerified: user.emailVerified
         };
 
+        // 🚀 UPDATED: Token expiry extended to 24 Hours (was 60 * 60)
         const token = jwt.sign(
             { _id: user._id, emailId: emailId, role: user.role },
             process.env.JWT_KEY,
-            { expiresIn: 60 * 60 }
+            { expiresIn: 24 * 60 * 60 } // 24 hours in seconds
         );
 
-        // ✅ COOKIE FIX: Secure + SameSite none
+        // 🚀 UPDATED: Cookie maxAge extended to 24 Hours (was 60 * 60 * 1000)
         res.cookie('token', token, {
-            maxAge: 60 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
             httpOnly: true,
             secure: true,
             sameSite: 'none'
@@ -159,15 +160,17 @@ const adminRegister = async (req, res) => {
         req.body.role = 'admin';
 
         const user = await User.create(req.body);
+        
+        // 🚀 UPDATED: Admin Token expiry extended to 24 Hours (was 60 * 60)
         const token = jwt.sign(
             { _id: user._id, emailId: emailId, role: user.role },
             process.env.JWT_KEY,
-            { expiresIn: 60 * 60 }
+            { expiresIn: 24 * 60 * 60 } // 24 hours in seconds
         );
 
-        // ✅ COOKIE FIX: Secure + SameSite none
+        // 🚀 UPDATED: Admin Cookie maxAge extended to 24 Hours (was 60 * 60 * 1000)
         res.cookie('token', token, {
-            maxAge: 60 * 60 * 1000,
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
             httpOnly: true,
             secure: true,
             sameSite: 'none'

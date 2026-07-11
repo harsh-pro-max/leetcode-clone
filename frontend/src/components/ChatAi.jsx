@@ -1,46 +1,65 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import axiosClient from "../utils/axiosClient";
 import { Send } from 'lucide-react';
 
-function ChatAi({problem}) {
-    const [messages, setMessages] = useState([
-        { role: 'model', parts:[{text: "Hi, How are you"}]},
-        { role: 'user', parts:[{text: "I am Good"}]}
-    ]);
+function ChatAi({ problem }) {
+    // ---- 1. Dynamic Initial Greeting based on Problem ----
+    const getInitialMessages = useMemo(() => {
+        if (problem && problem.title) {
+            return [
+                { 
+                    role: 'model', 
+                    parts: [{ 
+                        text: `👋 Hi! I'm your AI DSA tutor for **"${problem.title}"**. I can give you hints, review your code, or explain the optimal solution. What would you like help with?` 
+                    }] 
+                }
+            ];
+        }
+        return [
+            { 
+                role: 'model', 
+                parts: [{ 
+                    text: "👋 Hi! I'm your AI DSA tutor. Please load a coding problem from the list, and I'll help you solve it step-by-step!" 
+                }] 
+            }
+        ];
+    }, [problem]);
 
-    const { register, handleSubmit, reset,formState: {errors} } = useForm();
+    const [messages, setMessages] = useState(getInitialMessages);
+    const { register, handleSubmit, reset, formState: { errors } } = useForm();
     const messagesEndRef = useRef(null);
 
+    // Auto-scroll to latest message
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     const onSubmit = async (data) => {
-        
-        setMessages(prev => [...prev, { role: 'user', parts:[{text: data.message}] }]);
+        const userMessage = { role: 'user', parts: [{ text: data.message }] };
+        const updatedMessages = [...messages, userMessage];
+
+        setMessages(updatedMessages);
         reset();
 
         try {
-            
             const response = await axiosClient.post("/ai/chat", {
-                messages:messages,
-                title:problem.title,
-                description:problem.description,
-                testCases: problem.visibleTestCases,
-                startCode:problem.startCode
+                messages: updatedMessages,
+                title: problem?.title || "",
+                description: problem?.description || "",
+                testCases: problem?.visibleTestCases || [],
+                startCode: problem?.startCode || []
             });
 
-           
-            setMessages(prev => [...prev, { 
-                role: 'model', 
-                parts:[{text: response.data.message}] 
+            setMessages(prev => [...prev, {
+                role: 'model',
+                parts: [{ text: response.data.message }]
             }]);
         } catch (error) {
             console.error("API Error:", error);
-            setMessages(prev => [...prev, { 
-                role: 'model', 
-                parts:[{text: "Error from AI Chatbot"}]
+            setMessages(prev => [...prev, {
+                role: 'model',
+                parts: [{ text: "⚠️ Error connecting to AI. Please try again later." }]
             }]);
         }
     };
@@ -60,20 +79,21 @@ function ChatAi({problem}) {
                 ))}
                 <div ref={messagesEndRef} />
             </div>
+
             <form 
                 onSubmit={handleSubmit(onSubmit)} 
                 className="sticky bottom-0 p-4 bg-base-100 border-t"
             >
                 <div className="flex items-center">
                     <input 
-                        placeholder="Ask me anything" 
+                        placeholder="Ask me anything..." 
                         className="input input-bordered flex-1" 
                         {...register("message", { required: true, minLength: 2 })}
                     />
                     <button 
                         type="submit" 
                         className="btn btn-ghost ml-2"
-                        disabled={errors.message}
+                        disabled={!!errors.message}
                     >
                         <Send size={20} />
                     </button>
